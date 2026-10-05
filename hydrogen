@@ -1,0 +1,629 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Particle Physics Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(135deg, #222 0%, #444 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        #simulationCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+        .control-group {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 250px; /* Constrain width for better mobile view */
+        }
+        .control-group h3 {
+            margin: 0 0 10px 0;
+            color: #fff;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .control-button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            text-align: center;
+            display: block;
+            margin: 5px 0;
+        }
+        .control-button:hover {
+            background-color: #367c39;
+        }
+        .control-button.active {
+            background-color: #1e5631;
+        }
+        .llm-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #333;
+            color: #fff;
+            box-sizing: border-box; /* Include padding in width */
+        }
+        .llm-output {
+            background-color: #1a1a1a;
+            color: #eee;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 80px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.85em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #messageBox {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            z-index: 100;
+            font-size: 1em;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #messageBox.show {
+            opacity: 1;
+        }
+        #instructionsBox {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            z-index: 100;
+            font-size: 0.9em;
+            max-width: 300px;
+            line-height: 1.5;
+        }
+        #instructionsBox h2 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        #instructionsBox ul {
+            list-style: disc;
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+        #instructionsBox p {
+            margin-bottom: 10px;
+        }
+        #instructionsBox .close-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            cursor: pointer;
+            font-size: 1.2em;
+            color: #aaa;
+        }
+        #instructionsBox .close-button:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="simulationCanvas"></canvas>
+    <div class="controls">
+        <div class="control-group">
+            <h3>Particle Accelerator</h3>
+            <button id="acceleratorOnButton" class="control-button">Turn On</button>
+            <button id="acceleratorOffButton" class="control-button">Turn Off</button>
+        </div>
+        <div class="control-group">
+            <h3>Solenoid</h3>
+            <button id="solenoidOnButton" class="control-button">Turn On</button>
+            <button id="solenoidOffButton" class="control-button">Turn Off</button>
+            <button id="moveMuonButton" class="control-button">Bring Muon to Solenoid</button>
+        </div>
+        <div class="control-group">
+            <h3>Particle Information ✨</h3>
+            <input type="text" id="particleNameInput" class="llm-input" placeholder="Enter particle name (e.g., Muon)">
+            <button id="explainParticleButton" class="control-button">Explain Particle</button>
+            <div id="particleInfoOutput" class="llm-output"></div>
+        </div>
+        <div class="control-group">
+            <h3>Particle Interaction ✨</h3>
+            <input type="text" id="particle1Input" class="llm-input" placeholder="Particle 1 (e.g., Electron)">
+            <input type="text" id="particle2Input" class="llm-input" placeholder="Particle 2 (e.g., Proton)">
+            <button id="predictInteractionButton" class="control-button">Predict Interaction</button>
+            <div id="interactionOutput" class="llm-output"></div>
+        </div>
+        <!-- NEW GEMINI FEATURE: CONCEPT CHECK -->
+        <div class="control-group">
+            <h3>Concept Check / Quiz ✨</h3>
+            <input type="text" id="conceptInput" class="llm-input" placeholder="Enter topic (e.g., Weak Force)">
+            <button id="generateQuizButton" class="control-button">Generate Quiz Question</button>
+            <div id="quizOutput" class="llm-output"></div>
+        </div>
+    </div>
+    <div id="messageBox"></div>
+    <div id="instructionsBox">
+        <h2>Particle Physics Simulation Instructions</h2>
+        <ul>
+            <li><strong>Turn On/Off Accelerator:</strong> Controls the particle accelerator, which generates pions.</li>
+            <li><strong>Turn On/Off Solenoid:</strong> Activates/deactivates the magnetic field of the solenoid, affecting muon movement.</li>
+            <li><strong>Bring Muon to Solenoid:</strong> Moves the most recently created muon to the center of the solenoid.</li>
+            <li><strong>Observe:</strong> Watch how particles interact under different conditions. The electron orbits the Hydrogen nucleus. Pions, when created, decay into muons. The solenoid's magnetic field affects the muon. If a muon gets close enough to the electron, it can be captured, ejecting the original electron. This new muon then orbits the nucleus until it decays.</li>
+            <li><strong>Camera Controls:</strong> Use your mouse to drag and rotate the scene.</li>
+            <li><strong>Particle Information:</strong> Type a particle name (e.g., Muon, Proton, Electron, Pion, Neutron) and click "Explain Particle" to get information using the Gemini API.</li>
+            <li><strong>Particle Interaction:</strong> Enter two particle names and click "Predict Interaction" to get an explanation of how they might interact using the Gemini API.</li>
+            <li><strong>Concept Check / Quiz:</strong> Enter a physics concept (e.g., "Quarks", "Beta Decay") and get a question and answer generated by the Gemini API.</li>
+        </ul>
+        <p>Experiment with the controls to see how they affect the simulation!</p>
+        <div class="close-button">&times;</div>
+    </div>
+    <script>
+    const canvas = document.getElementById('simulationCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer.shadowMap.enabled = true;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+
+    let acceleratorOn = false;
+    let solenoidOn = false;
+    let muons = [];
+    let electron, muonInAtom = null;
+    let acceleratorInterval;
+
+    // Constants
+    const NUCLEUS_POSITION = new THREE.Vector3(0, 0, 0);
+    const SOLENOID_CENTER = new THREE.Vector3(20, 0, 0);
+    const ACCELERATOR_POSITION = new THREE.Vector3(40, 0, 0);
+    const SOLENOID_ACCELERATION = 25;
+    const ELECTRON_ORBIT_RADIUS = 5;
+    const MUON_ORBIT_RADIUS = 3;
+    const ELECTRON_COLOR = 0x00ff00;
+    const MUON_COLOR = 0x0000ff;
+    const PION_COLOR = 0xff00ff;
+    const PROTON_COLOR = 0xff4444;
+    const NEUTRON_COLOR = 0x888888;
+    const ACCELERATOR_COLOR = 0x555555;
+    const SOLENOID_COLOR = 0x0088ff;
+
+    const clock = new THREE.Clock();
+
+    // --- Helper Functions ---
+    function showMessage(message) {
+        const messageBox = document.getElementById('messageBox');
+        messageBox.textContent = message;
+        messageBox.classList.add('show');
+        setTimeout(() => {
+            messageBox.classList.remove('show');
+        }, 3000);
+    }
+
+    function resizeRendererToDisplaySize(renderer) {
+        const canvas = renderer.domElement;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const needResize = canvas.width !== width || canvas.height !== height;
+        if (needResize) {
+            renderer.setSize(width, height, false);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        }
+        return needResize;
+    }
+
+    // --- Scene Creation ---
+    function createScene() {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        // Add directional light for dynamic shadows and depth.
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        directionalLight.position.set(50, 50, 50);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        scene.add(directionalLight);
+    }
+
+    function createAccelerator() {
+        const geometry = new THREE.TorusGeometry(5, 1, 16, 100);
+        const material = new THREE.MeshStandardMaterial({ color: ACCELERATOR_COLOR });
+        const torus = new THREE.Mesh(geometry, material);
+        torus.position.copy(ACCELERATOR_POSITION);
+        torus.castShadow = true;
+        torus.receiveShadow = true;
+        scene.add(torus);
+    }
+
+    function createSolenoid() {
+        const solenoid = new THREE.Group();
+        const coilGeometry = new THREE.TorusGeometry(2.5, 0.3, 16, 32);
+        const coilMaterial = new THREE.MeshStandardMaterial({ color: SOLENOID_COLOR });
+        for (let i = -5; i <= 5; i += 1) {
+            const coil = new THREE.Mesh(coilGeometry, coilMaterial);
+            coil.position.set(i, 0, 0);
+            coil.rotation.z = Math.PI / 2;
+            coil.castShadow = true;
+            coil.receiveShadow = true;
+            solenoid.add(coil);
+        }
+        solenoid.position.copy(SOLENOID_CENTER);
+        scene.add(solenoid);
+    }
+
+    function createHydrogenAtom() {
+        const nucleus = new THREE.Group();
+        nucleus.position.copy(NUCLEUS_POSITION);
+        const proton = new THREE.Mesh(
+            new THREE.SphereGeometry(0.8),
+            new THREE.MeshStandardMaterial({ color: PROTON_COLOR })
+        );
+        proton.castShadow = true;
+        proton.receiveShadow = true;
+        const neutron = new THREE.Mesh(
+            new THREE.SphereGeometry(0.8),
+            new THREE.MeshStandardMaterial({ color: NEUTRON_COLOR })
+        );
+        neutron.position.set(1.5, 0, 0);
+        neutron.castShadow = true;
+        neutron.receiveShadow = true;
+        nucleus.add(proton, neutron);
+        electron = new THREE.Mesh(
+            new THREE.SphereGeometry(0.4),
+            new THREE.MeshStandardMaterial({
+                color: ELECTRON_COLOR,
+                emissive: ELECTRON_COLOR,
+                emissiveIntensity: 0.5
+            })
+        );
+        electron.castShadow = true;
+        electron.receiveShadow = true;
+        electron.position.set(ELECTRON_ORBIT_RADIUS, 0, 0);
+        nucleus.add(electron);
+        scene.add(nucleus);
+    }
+
+    function createPion(position) {
+        const pion = new THREE.Mesh(
+            new THREE.SphereGeometry(0.2),
+            new THREE.MeshStandardMaterial({ color: PION_COLOR })
+        );
+        pion.position.copy(position);
+        pion.castShadow = true;
+        pion.receiveShadow = true;
+        scene.add(pion);
+        setTimeout(() => {
+            scene.remove(pion);
+            createMuon(pion.position);
+            showMessage("Pion decayed into Muon!");
+        }, 5000);
+    }
+
+    function createMuon(position) {
+        const muon = {
+            mesh: new THREE.Mesh(
+                new THREE.SphereGeometry(0.2),
+                new THREE.MeshStandardMaterial({ color: MUON_COLOR })
+            ),
+            velocity: new THREE.Vector3(0, 0, 0),
+            acceleration: new THREE.Vector3(0, 0, 0)
+        };
+        muon.mesh.position.copy(position);
+        muon.castShadow = true;
+        muon.mesh.receiveShadow = true;
+        scene.add(muon.mesh);
+        muons.push(muon);
+        return muon;
+    }
+
+    // --- Control Functions ---
+    const acceleratorOnButton = document.getElementById('acceleratorOnButton');
+    const acceleratorOffButton = document.getElementById('acceleratorOffButton');
+    const solenoidOnButton = document.getElementById('solenoidOnButton');
+    const solenoidOffButton = document.getElementById('solenoidOffButton');
+    const moveMuonButton = document.getElementById('moveMuonButton');
+    const particleNameInput = document.getElementById('particleNameInput');
+    const explainParticleButton = document.getElementById('explainParticleButton');
+    const particleInfoOutput = document.getElementById('particleInfoOutput');
+    const particle1Input = document.getElementById('particle1Input');
+    const particle2Input = document.getElementById('particle2Input');
+    const predictInteractionButton = document.getElementById('predictInteractionButton');
+    const interactionOutput = document.getElementById('interactionOutput');
+    // New Quiz elements
+    const conceptInput = document.getElementById('conceptInput');
+    const generateQuizButton = document.getElementById('generateQuizButton');
+    const quizOutput = document.getElementById('quizOutput');
+
+
+    function toggleAccelerator(state) {
+        acceleratorOn = state;
+        if (acceleratorOn) {
+            acceleratorOnButton.classList.add('active');
+            acceleratorOffButton.classList.remove('active');
+            acceleratorInterval = setInterval(() => {
+                const xPos = ACCELERATOR_POSITION.x;
+                const yPos = (Math.random() - 0.5) * 10;
+                const zPos = (Math.random() - 0.5) * 10;
+                createPion(new THREE.Vector3(xPos, yPos, zPos));
+            }, 20000);
+            showMessage("Accelerator turned ON!");
+        } else {
+            acceleratorOnButton.classList.remove('active');
+            acceleratorOffButton.classList.add('active');
+            clearInterval(acceleratorInterval);
+            showMessage("Accelerator turned OFF!");
+        }
+    }
+
+    function toggleSolenoid(state) {
+        solenoidOn = state;
+        if (solenoidOn) {
+            solenoidOnButton.classList.add('active');
+            solenoidOffButton.classList.remove('active');
+            showMessage("Solenoid turned ON!");
+        } else {
+            solenoidOnButton.classList.remove('active');
+            solenoidOffButton.classList.add('active');
+            showMessage("Solenoid turned OFF!");
+        }
+    }
+
+    function moveMuonToSolenoid() {
+        if (muons.length > 0) {
+            const muon = muons[muons.length - 1];
+            muon.mesh.position.copy(SOLENOID_CENTER);
+            muon.velocity.set(0, 0, 0);
+            muon.acceleration.set(0, 0, 0);
+            showMessage("Muon moved to Solenoid!");
+        } else {
+            showMessage("No muons present!");
+        }
+    }
+
+    // Gemini API integration - generalized function
+    async function callGeminiAPI(prompt, outputElement, systemInstruction = null) {
+        outputElement.textContent = "Loading information...";
+        try {
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            
+            const payload = { 
+                contents: chatHistory,
+            };
+            
+            if (systemInstruction) {
+                payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+            }
+
+            // NOTE: Using gemini-2.0-flash as the fallback model for general tasks.
+            const apiKey = ""; // Leave this as-is; Canvas will provide the API key at runtime.
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            // Implement exponential backoff for API calls
+            const maxRetries = 5;
+            let currentDelay = 1000; // 1 second
+            
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429 && i < maxRetries - 1) {
+                        // Too Many Requests, wait and retry
+                        await new Promise(resolve => setTimeout(resolve, currentDelay));
+                        currentDelay *= 2;
+                        continue;
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status} ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        outputElement.textContent = text;
+                        return; // Success
+                    } else {
+                        outputElement.textContent = "Could not get information for this particle or concept.";
+                        return;
+                    }
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                         throw error; // Re-throw last error
+                    }
+                    // Wait and retry for network errors or non-429 server errors
+                    await new Promise(resolve => setTimeout(resolve, currentDelay));
+                    currentDelay *= 2;
+                }
+            }
+        } catch (error) {
+            console.error("Error calling Gemini API:", error);
+            outputElement.textContent = `Error: ${error.message}. Please try again.`;
+        }
+    }
+
+    // Event listener for Particle Information
+    explainParticleButton.addEventListener('click', () => {
+        const particleName = particleNameInput.value.trim();
+        if (particleName) {
+            const prompt = `Explain the particle "${particleName}" in the context of particle physics. Keep the explanation concsice and easy to understand for someone learning about basic particle interactions.`;
+            callGeminiAPI(prompt, particleInfoOutput);
+        } else {
+            showMessage("Please enter a particle name to explain.");
+        }
+    });
+
+    // Event listener for Particle Interaction
+    predictInteractionButton.addEventListener('click', () => {
+        const particle1 = particle1Input.value.trim();
+        const particle2 = particle2Input.value.trim();
+
+        if (particle1 && particle2) {
+            const prompt = `In particle physics, what happens when a "${particle1}" interacts with a "${particle2}"? Describe the most common or significant interaction briefly.`;
+            callGeminiAPI(prompt, interactionOutput);
+        } else {
+            showMessage("Please enter names for both particles to predict interaction.");
+        }
+    });
+    
+    // Event listener for new Quiz Generator
+    generateQuizButton.addEventListener('click', () => {
+        const concept = conceptInput.value.trim();
+        if (concept) {
+            const systemPrompt = "You are a concise, supportive physics tutor. When a user provides a topic, generate a single, short, multiple-choice or true/false question related to that topic. Provide the correct answer and a very brief explanation in the output, clearly separating the question from the answer.";
+            const userPrompt = `Generate a quiz question about: ${concept}`;
+            callGeminiAPI(userPrompt, quizOutput, systemPrompt);
+        } else {
+            showMessage("Please enter a physics concept for the quiz.");
+        }
+    });
+
+
+    acceleratorOnButton.addEventListener('click', () => toggleAccelerator(true));
+    acceleratorOffButton.addEventListener('click', () => toggleAccelerator(false));
+    solenoidOnButton.addEventListener('click', () => toggleSolenoid(true));
+    solenoidOffButton.addEventListener('click', () => toggleSolenoid(false));
+    moveMuonButton.addEventListener('click', moveMuonToSolenoid);
+
+    // --- Main Simulation Loop ---
+    function animate() {
+        requestAnimationFrame(animate);
+        resizeRendererToDisplaySize(renderer);
+        const deltaTime = clock.getDelta();
+        const time = Date.now();
+
+        if (!muonInAtom) {
+            const angle = time / 500;
+            electron.position.set(
+                ELECTRON_ORBIT_RADIUS * Math.cos(angle),
+                ELECTRON_ORBIT_RADIUS * Math.sin(angle),
+                0
+            );
+        }
+
+        muons.forEach(muon => {
+            muon.acceleration.set(0, 0, 0);
+            if (solenoidOn && muon.mesh.position.distanceTo(SOLENOID_CENTER) < 5) {
+                // FIX: Apply a force towards the NUCLEUS_POSITION (Hydrogen Atom)
+                const directionToNucleus = NUCLEUS_POSITION.clone().sub(muon.mesh.position).normalize();
+                muon.acceleration.addScaledVector(directionToNucleus, SOLENOID_ACCELERATION);
+            }
+
+            muon.velocity.addScaledVector(muon.acceleration, deltaTime); 
+            muon.mesh.position.addScaledVector(muon.velocity, deltaTime);
+
+            const electronWorldPos = new THREE.Vector3(
+                NUCLEUS_POSITION.x + electron.position.x,
+                NUCLEUS_POSITION.y + electron.position.y,
+                NUCLEUS_POSITION.z
+            );
+
+            if (muon.mesh.position.distanceTo(electronWorldPos) < 1.2 && !muonInAtom) {
+                handleCollision(muon);
+            }
+        });
+
+        if (muonInAtom) {
+            // Muon orbits the nucleus
+            const angle = time / 300;
+            muonInAtom.position.set(
+                NUCLEUS_POSITION.x + MUON_ORBIT_RADIUS * Math.cos(angle),
+                NUCLEUS_POSITION.y + MUON_ORBIT_RADIUS * Math.sin(angle),
+                NUCLEUS_POSITION.z
+            );
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    function handleCollision(collidingMuon) {
+        // Remove the colliding muon from the active muons array
+        const index = muons.indexOf(collidingMuon);
+        if (index > -1) {
+            muons.splice(index, 1);
+            scene.remove(collidingMuon.mesh);
+        }
+        // Set the captured muon to orbit the atom
+        muonInAtom = collidingMuon.mesh;
+        scene.add(muonInAtom);
+        // Eject the electron
+        electron.position.set(0, 10, 0); // Move electron far away
+        showMessage("Muon captured by Hydrogen! Electron ejected!");
+        // Schedule the captured muon to decay after some time
+        setTimeout(() => {
+            scene.remove(muonInAtom);
+            muonInAtom = null; // Clear the captured muon
+            electron.position.set(ELECTRON_ORBIT_RADIUS, 0, 0); // Return electron to original orbit
+            showMessage("Captured Muon decayed!");
+        }, 20000); // Muon decays after 20 seconds
+    }
+
+    function init() {
+        // Initialize the 3D scene, accelerator, solenoid, and hydrogen atom
+        createScene();
+        createAccelerator();
+        createSolenoid();
+        createHydrogenAtom();
+        // Resize the renderer to fit the display size
+        resizeRendererToDisplaySize(renderer);
+        // Set initial camera position and target
+        camera.position.set(0, 40, 80);
+        controls.target.copy(NUCLEUS_POSITION);
+        controls.update();
+        // Start the animation loop
+        animate();
+    }
+
+    // Event listener for window resize to ensure responsiveness
+    window.addEventListener('resize', () => {
+        resizeRendererToDisplaySize(renderer);
+    });
+
+    // Initialize the simulation when the window loads
+    window.onload = init;
+    </script>
+</body>
+</html>
