@@ -17,3 +17,5 @@ An interactive simulation demonstrating the formation and decay of **muonic hydr
 ### Simulation Flow
 
 `Pion → Muon → Solenoid → Hydrogen → Muonic Hydrogen → Muon Decay → Electron Returns`
+<img width="1600" height="721" alt="image" src="https://github.com/user-attachments/assets/b1dca197-39ee-4ce4-9502-3f783a674aad" />
+<img width="1600" height="729" alt="image" src="https://github.com/user-attachments/assets/cf28e481-5a55-49e3-8a14-68535ead616c" />
